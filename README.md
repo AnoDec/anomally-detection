@@ -1,1 +1,1 @@
-# anomally-detection
+# anomaly-detection
