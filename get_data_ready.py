@@ -12,7 +12,7 @@ from sklearn.preprocessing import MinMaxScaler
 scaler = MinMaxScaler()
 
 # Eğitim veri seti yolunu tanımla
-TRAIN_DATASET_PATH = r'C:\Users\yagiz\OneDrive\Masaüstü\kodlar\UnetsegmentationDeneme\unet-segmentation-project\data\train\BraTS2020_TrainingData\Training60'
+TRAIN_DATASET_PATH ='brats training path'
 
 # FLAIR görüntüsünü yükle ve maksimum değerini yazdır
 test_image_flair=nib.load(TRAIN_DATASET_PATH + '/BraTS20_Training_047/BraTS20_Training_047_flair.nii').get_fdata()
