@@ -1,4 +1,4 @@
-TRAIN_DATASET_PATH = r'C:\Users\yagiz\OneDrive\Masaüstü\kodlar\UnetsegmentationDeneme\unet-segmentation-project\data\train\BraTS2020_TrainingData\Training60'
+TRAIN_DATASET_PATH = 'Brats için path'
 
 import os
 import numpy as np
