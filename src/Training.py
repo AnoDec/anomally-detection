@@ -13,6 +13,7 @@ import segmentation_models_3D as sm
 from keras.metrics import MeanIoU
 from sklearn.metrics import f1_score, precision_score, recall_score
 from keras.models import load_model
+from PIL import Image
 
 # GPU belleği büyümesini ayarla
 gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -94,6 +95,28 @@ def iou_metric(y_true, y_pred):
     union = K.sum(y_true) + K.sum(y_pred) - intersection
     return intersection / (union + K.epsilon())
 
+def f1_score_metric(y_true, y_pred):
+    y_true = K.cast(y_true, 'float32')
+    y_pred = K.cast(K.round(y_pred), 'float32')
+    tp = K.sum(y_true * y_pred)
+    fp = K.sum(y_pred) - tp
+    fn = K.sum(y_true) - tp
+    return 2 * tp / (2 * tp + fp + fn + K.epsilon())
+
+def precision_metric(y_true, y_pred):
+    y_true = K.cast(y_true, 'float32')
+    y_pred = K.cast(K.round(y_pred), 'float32')
+    tp = K.sum(y_true * y_pred)
+    fp = K.sum(y_pred) - tp
+    return tp / (tp + fp + K.epsilon())
+
+def recall_metric(y_true, y_pred):
+    y_true = K.cast(y_true, 'float32')
+    y_pred = K.cast(K.round(y_pred), 'float32')
+    tp = K.sum(y_true * y_pred)
+    fn = K.sum(y_true) - tp
+    return tp / (tp + fn + K.epsilon())
+
 # Tüm metrikleri hesaplayan fonksiyon
 def calculate_all_metrics(y_true, y_pred):
     """Tüm segmentasyon metriklerini hesapla"""
@@ -125,32 +148,51 @@ def calculate_all_metrics(y_true, y_pred):
         'iou': iou,
         'dice': dice
     }
+
 # Kullanılacak metrikler
 metrics = [
     'accuracy',
     sm.metrics.IOUScore(threshold=0.5),
     sm.metrics.FScore(threshold=0.5),
-    'precision',
-    'recall',
+    precision_metric,
+    recall_metric,
+    f1_score_metric,
     iou_metric,
     dice_metric
 ]
+
 # Eğitim ve doğrulama metriklerini çizen fonksiyon
-def plot_metrics(history, metric_name):
+def plot_metrics(history):
     """Eğitim ve doğrulama metriklerini çiz"""
-    plt.figure(figsize=(10, 6))
-    plt.plot(history[{metric_name}], 'y', label=f'Train {metric_name}')
-    plt.plot(history[f'val_{metric_name}'], 'r', label=f'Validation{metric_name}')
-    plt.title(f'Training and Validation {metric_name}')
-    plt.xlabel('Epoch')
-    plt.ylabel(metric_name)
-    plt.legend()
-    plt.show()
+    for metric_name in history.keys():
+        if not metric_name.startswith('val_'):
+            plt.figure(figsize=(10, 6))
+            plt.plot(history[metric_name], 'y', label=f'Train {metric_name}')
+            if f'val_{metric_name}' in history:
+                plt.plot(history[f'val_{metric_name}'], 'r', label=f'Validation {metric_name}')
+            plt.title(f'Training and Validation {metric_name}')
+            plt.xlabel('Epoch')
+            plt.ylabel(metric_name)
+            plt.legend()
+            plt.show()
 
-# Kullanılacak metrikler
+def plot_precision_recall_f1(history):
+    """Precision, Recall ve F1 Score grafiğini çiz"""
+    if 'precision_metric' in history and 'recall_metric' in history and 'f1_score_metric' in history:
+        plt.figure(figsize=(10, 6))
+        
+        # Precision vs Recall plot
+        plt.plot(history['recall_metric'], history['precision_metric'], 'b', label='Precision vs Recall')
+        
+        # F1 Score vs Recall plot
+        plt.plot(history['recall_metric'], history['f1_score_metric'], 'g', label='F1 Score vs Recall')
+        
+        plt.title('Precision and F1 Score vs Recall')
+        plt.xlabel('Recall')
+        plt.ylabel('Score')
+        plt.legend()
+        plt.show()
 
-
-# Öğrenme oranı ve optimizer tanımla
 LR = 0.0001
 optim = keras.optimizers.Adam(LR)
 
@@ -172,7 +214,7 @@ model.compile(optimizer=optim, loss=total_loss, metrics=metrics)
 print(model.summary())
 
 # Modeli eğit
-epochs = 5
+epochs = 1
 history = model.fit(train_img_datagen,
                     steps_per_epoch=steps_per_epoch,
                     epochs=epochs,
@@ -185,36 +227,24 @@ model_filename = f'saved_models/brats_3d_{epochs}epochs_simple_unet_weighted_dic
 model.save(model_filename)
 
 # Tüm metrikleri çiz
-metric_names = ['f1', 'iou', 'dice', 'precision', 'sensitivity', 'specificity']
-for metric in metric_names:
-    plot_metrics(history.history, [metric])
+plot_metrics(history.history)
+
+# Precision, Recall ve F1 Score grafiğini çiz
+plot_precision_recall_f1(history.history)
 
 # Tahmin veya eğitime devam etmek için modeli yükle
 my_model = load_model(model_filename, 
                       custom_objects={'dice_loss_plus_1focal_loss': total_loss,
-                                      'iou_score': sm.metrics.IOUScore(threshold=0.5), 'f_score': sm.metrics.FScore(threshold=0.5)})
+                                      'iou_score': sm.metrics.IOUScore(threshold=0.5), 
+                                      'f_score': sm.metrics.FScore(threshold=0.5),
+                                      'iou_metric': iou_metric,
+                                      'dice_metric': dice_metric,
+                                      'f1_score_metric': f1_score_metric,
+                                      'precision_metric': precision_metric,
+                                      'recall_metric': recall_metric})
 my_model.compile(optimizer=keras.optimizers.Adam(LR), loss=total_loss, metrics=metrics)
 
-# Eğitime devam et
-history2 = my_model.fit(
-    train_img_datagen,
-    steps_per_epoch=steps_per_epoch,
-    epochs=5,
-    verbose=1,
-    validation_data=val_img_datagen,
-    validation_steps=val_steps_per_epoch
-)
-
-
-# Birleştirilmiş metrikleri kaydet
-combined_metrics = {
-    metric: history.history[metric] + history2.history[metric]
-    for metric in metric_names
-}
-
 # Test veri setinden bir batch görüntü üzerinde IoU'yu doğrula
-
-
 test_img_datagen = imageLoader(val_img_dir, val_img_list, 
                                val_mask_dir, val_mask_list, batch_size)
 
@@ -243,6 +273,7 @@ test_img_input = np.expand_dims(test_img, axis=0)
 test_prediction = my_model.predict(test_img_input)
 test_prediction_argmax = np.argmax(test_prediction, axis=4)[0, :, :, :]
 
+
 n_slice = 55
 plt.figure(figsize=(12, 8))
 plt.subplot(231)
@@ -254,4 +285,64 @@ plt.imshow(test_mask_argmax[:, :, n_slice])
 plt.subplot(233)
 plt.title('Prediction on test image')
 plt.imshow(test_prediction_argmax[:, :, n_slice])
+plt.show()
+
+# Function to preprocess image
+def preprocess_image(image_path, target_size):
+    if image_path.endswith('.npy'):
+        img = np.load(image_path)
+    else:
+        img = Image.open(image_path)
+        img = img.resize(target_size)
+        img = np.array(img)
+    
+    img = img.astype(np.float32) / 255.0  # Normalize to [0, 1]
+    img = np.expand_dims(img, axis=0)  # Add batch dimension
+    return img
+
+# Function to predict and visualize
+def predict_and_visualize(model, image_path, mask_path=None, target_size=(128, 128, 128)):
+    # Preprocess the image
+    img = preprocess_image(image_path, target_size)
+    
+    # Make prediction
+    prediction = model.predict(img)
+    prediction_argmax = np.argmax(prediction, axis=4)[0, :, :, :]
+    
+    # Visualize the results
+    n_slice = prediction_argmax.shape[2] // 2  # Select middle slice for visualization
+    plt.figure(figsize=(12, 6))
+    
+    plt.subplot(121)
+    plt.title('Original Image')
+    plt.imshow(img[0, :, :, n_slice, 0], cmap='gray')
+    
+    plt.subplot(122)
+    plt.title('Predicted Mask')
+    plt.imshow(prediction_argmax[:, :, n_slice])
+    
+    plt.show()
+    
+    # If mask is provided, calculate and print metrics
+    if mask_path:
+        mask = preprocess_image(mask_path, target_size)
+        mask_argmax = np.argmax(mask, axis=4)[0, :, :, :]
+        metrics = calculate_all_metrics(mask_argmax, prediction_argmax)
+        for metric_name, value in metrics.items():
+            print(f'{metric_name}: {value:.4f}')
+        
+        return metrics
+
+# Example usage
+#image_path = 'path/to/your/image.npy'  # Update with your image path
+#mask_path = 'path/to/your/mask.npy'  # Update with your mask path if available
+#metrics = predict_and_visualize(my_model, image_path, mask_path)
+
+plt.figure(figsize=(10, 6))
+plt.plot(history.history['iou_score'], 'y', label='Train Mean IoU')
+plt.plot(history.history['val_iou_score'], 'r', label='Validation Mean IoU')
+plt.title('Training and Validation Mean IoU')
+plt.xlabel('Epoch')
+plt.ylabel('Mean IoU')
+plt.legend()
 plt.show()
