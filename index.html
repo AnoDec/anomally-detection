@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anomaly Detection</title>
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #D3D3D3 0%, #E7E7E7 100%);
+            --surface-color: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --accent-color: #B0B0B0;
+            --button-primary: #fffbfb;
+            --button-hover: #C0C0C0;
+            --gallery-background: #F5F5F5;
+            --gallery-caption-background: #FFFFFF;
+            --gallery-caption-text: #333333;
+            --gallery-caption-secondary: #666666;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            background: #f8f8f8;
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 1.5rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1.5rem;
+            background: #fffbfb;
+            border-radius: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05),
+                        0 10px 10px -5px rgba(0, 0, 0, 0.02);
+        }
+
+        .join-button {
+            background: #fffbfb;
+            color: var(--text-primary);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: inline-block;
+            margin: 1rem 0 2rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .join-button:hover {
+            background: var(--button-hover);
+            transform: translateY(-2px);
+        }
+
+        .content {
+            text-align: center;
+            padding: 1rem;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        h2 {
+            font-size: 1.75rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            max-width: 800px;
+            margin: 0 auto 3rem;
+            line-height: 1.4;
+        }
+
+        .authors {
+            color: var(--text-secondary);
+            max-width: 900px;
+            margin: 0 auto 2rem;
+            line-height: 1.8;
+            font-size: 1.1rem;
+        }
+
+        .affiliations {
+            margin: 2rem 0;
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .affiliations div {
+            margin: 0.5rem 0;
+        }
+
+        .notes {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin: 2rem 0;
+            padding: 1rem;
+            background: #fffbfb;
+            border-radius: 12px;
+            display: inline-block;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .button {
+            background: white;
+            color: var(--text-primary);
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1rem;
+            font-weight: 500;
+            border: 1px solid #E2E2E2;
+            transition: all 0.2s ease;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border-color: #B0B0B0;
+        }
+
+        .icon {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+
+        .gallery {
+            margin: 3rem 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            padding: 0.5rem;
+        }
+
+        .gallery-item {
+            background: #fffbfb;
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: transform 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .gallery-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .gallery-caption h4 {
+            color: var(--gallery-caption-text);
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+        }
+
+        .gallery-caption p {
+            color: var(--gallery-caption-secondary);
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        .abstract {
+            margin-top: 3rem;
+            padding: 2rem;
+            background: #fffbfb;
+            border-radius: 12px;
+            text-align: left;
+        }
+
+        .abstract h3 {
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .abstract p {
+            color: var(--text-secondary);
+            line-height: 1.8;
+            font-size: 1.1rem;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            h2 {
+                font-size: 1.25rem;
+            }
+
+            .buttons {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .button {
+                justify-content: center;
+            }
+
+            .gallery {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="content">
+            <a href="https://forms.gle/MXjYBCtB2RdUZWnq7" target="_blank" class="join-button">👩‍💻 Join Our Research Team 👨‍💻</a>
+            
+            <h1>AnoDec 🧠</h1>
+            <h2>Revolutionizing brain tumor diagnosis with cutting-edge AI, offering unparalleled accuracy in detection, segmentation, and classification.</h2>
+            
+            <div class="authors">
+                <a href="https://www.linkedin.com/in/tahaberkterekli1/" target="_blank">Taha Berk Terekli</a><sup>¹*¶‡§</sup>,
+                <a href="https://www.linkedin.com/in/ygthanygt/" target="_blank">Yiğithan Yiğit</a><sup>¹*¶‡</sup>,
+                <a href="https://www.linkedin.com/in/ya%C4%9F%C4%B1z-terzi-0978a2221/" target="_blank">Yağız Terzi</a><sup>¹*¶‡</sup>,
+                <a href="https://www.linkedin.com/in/kemal-ege-duran-184520286/" target="_blank">Kemal Ege Duran</a><sup>¹*¶‡</sup>,
+                <a href="https://www.linkedin.com/in/ceren-nizamoğlu-83a523216/" target="_blank">Ceren Nizamoğlu</a><sup>¹*</sup>,
+                <a href="https://www.linkedin.com/in/zeynep-kuzu-17a9551b9/" target="_blank">Zeynep Kuzu</a><sup>³*</sup>,
+                <a href="https://www.linkedin.com/in/ali-emre-döşer-b8a086253/" target="_blank">Ali Emre Döşer</a><sup>²*</sup>,
+                <a href="https://www.linkedin.com/in/aziz-kutay-özcan-355869173/" target="_blank">Aziz Kutay Özcan</a><sup>⁵*</sup>,
+                <a href="https://www.linkedin.com/in/ahmet-eren-terekli-1a4b3a203/" target="_blank">Ahmet Eren Terekli</a><sup>⁴*</sup>
+            </div>
+
+            <div class="affiliations">
+                <div>¹Yıldız Technical University, ²Halic University, ³Bezmialem Vakıf University, ⁴Trakya University, ⁵Istanbul University/Cerrahpaşa</div>
+            </div>
+
+            <div class="notes">
+                * Equal contribution ¶ Main technical contribution ‡ Corresponding authors § Lead contact
+            </div>
+
+            <div class="buttons">
+                <a href="#" class="button">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.8L20 9v6l-8 4-8-4V9l8-4.2z"/>
+                    </svg>
+                    arXiv (⌛)
+                </a>
+                <a href="#" class="button">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1v5h5v10H6V4h7z"/>
+                    </svg>
+                    Paper (⌛)
+                </a>
+                <a href="https://github.com/AnoDec" target="_blank" class="button">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M12 2A10 10 0 0 0 2 12a10 10 0 0 0 6.8 9.5c.5.1.7-.2.7-.5v-1.7C6.7 20 6.1 18 6.1 18c-.4-1.1-1-1.4-1-1.4-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.9.1-.6.3-1.1.6-1.3-2.1-.2-4.2-1-4.2-4.6 0-1 .4-1.8 1-2.5-.1-.2-.4-1.2.1-2.5 0 0 .8-.3 2.7 1 .8-.2 1.7-.3 2.5-.3s1.7.1 2.5.3c1.9-1.3 2.7-1 2.7-1 .5 1.3.2 2.3.1 2.5.6.7 1 1.5 1 2.5 0 3.6-2.2 4.4-4.3 4.6.3.3.6.8.6 1.7v2.5c0 .3.2.6.7.5A10 10 0 0 0 22 12 10 10 0 0 0 12 2z"/>
+                    </svg>
+                    Code 
+                </a>
+                <a href="https://paperswithcode.com/dataset/brats20" target="_blank" class="button">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M21 3H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H3V5h18v14zM9 8h6v2H9zm0 4h6v2H9z"/>
+                    </svg>
+                    Data
+                </a>
+            </div>
+
+            <div class="gallery">
+                <div class="gallery-item">
+                    <div class="gallery-caption">
+                        <h4>Segmentation</h4>
+                        <p>Employing innovative algorithms that accurately and efficiently delineate tumor boundaries in medical images, with high precision, to provide a clearer understanding of tumor size, shape, and location for more reliable diagnostic results.</p>
+                    </div>
+                </div>
+                <div class="gallery-item">
+                    <div class="gallery-caption">
+                        <h4>Classification</h4>
+                        <p>Utilizing advanced AI models to classify brain tumors with high precision, this approach distinguishes tumor types, enabling personalized treatment strategies and supporting more effective clinical decisions for improved patient outcomes.</p>
+                    </div>
+                </div>
+                <div class="gallery-item">
+                    <div class="gallery-caption">
+                        <h4>Detection</h4>
+                        <p>Implementing cutting-edge detection techniques that rapidly and accurately identify brain tumors in medical scans, with a focus on high detection rates, ensuring early diagnosis and timely intervention for optimal patient care.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="abstract">
+                <h3>Abstract</h3>
+                <p>
+                    The detection, segmentation, and classification of brain tumors are critical components in the diagnosis and treatment of brain-related diseases. Despite the advancements in medical imaging technologies, the accurate and efficient analysis of brain tumor scans remains a significant challenge. This research proposes an innovative AI-driven solution to address these challenges, leveraging cutting-edge machine learning techniques to improve the precision of brain tumor detection and analysis. By developing advanced algorithms, this study enhances the segmentation process, ensuring the accurate delineation of tumor boundaries within medical images. Our classification models are designed to provide high accuracy in distinguishing between various types of brain tumors, offering crucial insights that enable personalized treatment plans. Additionally, the detection system is optimized to identify tumor presence with exceptional reliability, ensuring early diagnosis and timely medical intervention. This work not only improves the accuracy and efficiency of brain tumor analysis but also introduces a new standard of innovation in the medical AI field, promising significant advancements in patient care. The proposed approach shows remarkable potential for enhancing clinical workflows, reducing diagnostic errors, and ultimately improving the overall prognosis for patients with brain tumors.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
