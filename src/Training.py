@@ -1,8 +1,9 @@
-TRAIN_DATASET_PATH = r'C:\Users\yagiz\OneDrive\Masaüstü\kodlar\UnetsegmentationDeneme\unet-segmentation-project\data\train\BraTS2020_TrainingData\Training60'
+TRAIN_DATASET_PATH = r'C:\Users\yagiz\OneDrive\Masaüstü\kodlar\UnetsegmentationDeneme\unet-segmentation-project\data\train\BraTS2020_TrainingData\MICCAI_BraTS2020_TrainingData'
+VALIDATION_DATASET_PATH = r'C:\Users\yagiz\OneDrive\Masaüstü\kodlar\UnetsegmentationDeneme\unet-segmentation-project\data\validation\BraTS2020_ValidationData\MICCAI_BraTS2020_ValidationData'
 
 import os
 import numpy as np
-from data_generator import imageLoader
+from data_generator import imageLoader, load_img
 import tensorflow as tf
 import keras
 from matplotlib import pyplot as plt
@@ -25,30 +26,40 @@ if gpus:
 tf.keras.backend.set_floatx('float32')
 
 # Eğitim görüntüleri ve maskeleri için dizinleri tanımla
-train_img_dir = TRAIN_DATASET_PATH + "/input_data_60/train/images/"
-train_mask_dir = TRAIN_DATASET_PATH + "/input_data_60/train/masks/"
+train_img_dir = os.path.join(TRAIN_DATASET_PATH, "input_data_3channels/images/")
+train_mask_dir = os.path.join(TRAIN_DATASET_PATH, "input_data_3channels/masks/")
 
-# Doğrulama görüntüleri ve maskeleri için dizinleri tanımla
-val_img_dir = TRAIN_DATASET_PATH + "/input_data_60/val/images/"
-val_mask_dir = TRAIN_DATASET_PATH + "/input_data_60/val/masks/"
+# Doğrulama görüntüleri için dizinleri tanımla
+val_img_dir = os.path.join(VALIDATION_DATASET_PATH, "input_data_3channels/images/")
 
 # Tüm eğitim görüntülerini ve maskelerini listele
 train_img_list = os.listdir(train_img_dir)
 train_mask_list = os.listdir(train_mask_dir)
 
-# Tüm doğrulama görüntülerini ve maskelerini listele
+# Tüm doğrulama görüntülerini listele
 val_img_list = os.listdir(val_img_dir)
-val_mask_list = os.listdir(val_mask_dir)
 
 # Eğitim ve doğrulama için batch boyutunu ayarla
 batch_size = 5
 
-# Eğitim ve doğrulama için görüntü veri üreticilerini başlat
+# Eğitim için görüntü veri üreticisini başlat
 train_img_datagen = imageLoader(train_img_dir, train_img_list, 
                                 train_mask_dir, train_mask_list, batch_size)
 
-val_img_datagen = imageLoader(val_img_dir, val_img_list, 
-                              val_mask_dir, val_mask_list, batch_size)
+# Doğrulama için görüntü veri üreticisini başlat
+def val_imageLoader(img_dir, img_list, batch_size, dtype=np.float32):
+    L = len(img_list)
+    while True:
+        batch_start = 0
+        batch_end = batch_size
+        while batch_start < L:
+            limit = min(batch_end, L)
+            X = load_img(img_dir, img_list[batch_start:limit])  # Görüntüleri yükle
+            yield X  # Sadece görüntüleri döndür
+            batch_start += batch_size
+            batch_end += batch_size
+
+val_img_datagen = val_imageLoader(val_img_dir, val_img_list, batch_size)
 
 # Bir batch görüntü ve maske alarak üreticiyi doğrula
 img, msk = train_img_datagen.__next__()
@@ -64,16 +75,19 @@ n_slice = random.randint(0, test_mask.shape[2])
 plt.figure(figsize=(12, 8))
 
 # Görüntünün farklı kanallarını ve karşılık gelen maskeyi çiz
-plt.subplot(221)
+plt.subplot(231)
 plt.imshow(test_img[:, :, n_slice, 0], cmap='gray')
 plt.title('Image flair')
-plt.subplot(222)
+plt.subplot(232)
 plt.imshow(test_img[:, :, n_slice, 1], cmap='gray')
-plt.title('Image t1ce')
-plt.subplot(223)
+plt.title('Image t1')
+plt.subplot(233)
 plt.imshow(test_img[:, :, n_slice, 2], cmap='gray')
+plt.title('Image t1ce')
+plt.subplot(234)
+plt.imshow(test_img[:, :, n_slice, 3], cmap='gray')
 plt.title('Image t2')
-plt.subplot(224)
+plt.subplot(235)
 plt.imshow(test_mask[:, :, n_slice])
 plt.title('Mask')
 plt.show()
@@ -163,13 +177,14 @@ metrics = [
 
 # Eğitim ve doğrulama metriklerini çizen fonksiyon
 def plot_metrics(history):
-    """Eğitim ve doğrulama metriklerini çiz"""
+    """Eğitim ve doğrulama metriklerini aynı grafikte çiz"""
     for metric_name in history.keys():
         if not metric_name.startswith('val_'):
             plt.figure(figsize=(10, 6))
             plt.plot(history[metric_name], 'y', label=f'Train {metric_name}')
-            if f'val_{metric_name}' in history:
-                plt.plot(history[f'val_{metric_name}'], 'r', label=f'Validation {metric_name}')
+            val_metric_name = f'val_{metric_name}'
+            if val_metric_name in history:
+                plt.plot(history[val_metric_name], 'r', label=f'Validation {metric_name}')
             plt.title(f'Training and Validation {metric_name}')
             plt.xlabel('Epoch')
             plt.ylabel(metric_name)
@@ -206,7 +221,7 @@ from Unet_model import simple_unet_model
 model = simple_unet_model(IMG_HEIGHT=128, 
                           IMG_WIDTH=128, 
                           IMG_DEPTH=128, 
-                          IMG_CHANNELS=3, 
+                          IMG_CHANNELS=4, 
                           num_classes=4)
 
 # Modeli tanımlanan optimizer, kayıp ve metriklerle derle
@@ -245,34 +260,23 @@ my_model = load_model(model_filename,
 my_model.compile(optimizer=keras.optimizers.Adam(LR), loss=total_loss, metrics=metrics)
 
 # Test veri setinden bir batch görüntü üzerinde IoU'yu doğrula
-test_img_datagen = imageLoader(val_img_dir, val_img_list, 
-                               val_mask_dir, val_mask_list, batch_size)
+test_img_datagen = val_imageLoader(val_img_dir, val_img_list, batch_size)
 
-# Bir batch test görüntü ve maske al
-test_image_batch, test_mask_batch = test_img_datagen.__next__()
+# Bir batch test görüntü al
+test_image_batch = test_img_datagen.__next__()
 
 # Test batch üzerinde tahmin yap
-test_mask_batch_argmax = np.argmax(test_mask_batch, axis=4)
 test_pred_batch = my_model.predict(test_image_batch)
 test_pred_batch_argmax = np.argmax(test_pred_batch, axis=4)
 
-# Ortalama IoU'yu hesapla
-n_classes = 4
-IOU_keras = MeanIoU(num_classes=n_classes)
-IOU_keras.update_state(test_pred_batch_argmax, test_mask_batch_argmax)
-print("Mean IoU =", IOU_keras.result().numpy())
-
 # Tek bir test görüntüsü üzerinde tahmin yap
 img_num = 42
-test_img = np.load(TRAIN_DATASET_PATH + "/input_data_60/val/images/image_" + str(img_num) + ".npy")
-test_mask = np.load(TRAIN_DATASET_PATH + "/input_data_60/val/masks/mask_" + str(img_num) + ".npy")
-test_mask_argmax = np.argmax(test_mask, axis=3)
+test_img = np.load(VALIDATION_DATASET_PATH + "/input_data_3channels/images/image_" + str(img_num) + ".npy")
 
 # Tahmin için test görüntüsünü hazırla
 test_img_input = np.expand_dims(test_img, axis=0)
 test_prediction = my_model.predict(test_img_input)
 test_prediction_argmax = np.argmax(test_prediction, axis=4)[0, :, :, :]
-
 
 n_slice = 55
 plt.figure(figsize=(12, 8))
@@ -280,9 +284,6 @@ plt.subplot(231)
 plt.title('Testing Image')
 plt.imshow(test_img[:, :, n_slice, 1], cmap='gray')
 plt.subplot(232)
-plt.title('Testing Label')
-plt.imshow(test_mask_argmax[:, :, n_slice])
-plt.subplot(233)
 plt.title('Prediction on test image')
 plt.imshow(test_prediction_argmax[:, :, n_slice])
 plt.show()
